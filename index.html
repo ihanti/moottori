@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moottoriääni Teslaan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a gauge cluster at night: terse, confident, readable at arm's length
+   IDEA: the car's own instrument cluster, a rev counter with a redline
+   PICTURE: large SVG tachometer, needle and live rev arc, speed and gear in the middle
+   COLOUR and TYPE: black panel, warm white, redline red; Saira Semi Condensed
+   LAYOUT: dial left, controls right, engine selector below; stacks under 820px */
+:root{color-scheme:dark;--bg:#0b0c0e;--panel:#14171b;--panel2:#1b1f24;--line:#272c33;--ink:#f3f1ec;--mute:#8f969f;--red:#ff3b2f;--red2:#b81d14}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:16px/1.45 "Saira Semi Condensed",system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.app{max-width:1440px;margin:0 auto;padding:14px clamp(12px,2.4vw,32px) 28px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:24px;line-height:1.05;font-weight:700;margin:0}
+h1 span{color:var(--mute);font-weight:400}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute);font-size:15px;white-space:nowrap}
+.chip i{width:9px;height:9px;border-radius:50%;background:#4a4f56;flex:none}
+.chip.ok{color:var(--ink)}.chip.ok i{background:#eef0f2;box-shadow:0 0 8px #fff9}
+.chip.warn{color:var(--ink)}.chip.warn i{background:var(--red)}
+.banner{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;color:var(--mute);margin-bottom:12px;font-size:15px}
+.banner b{color:var(--ink)}
+.main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(16px,2.4vw,32px);align-items:center}
+.cluster{display:flex;flex-direction:column;align-items:center}
+.leds{display:flex;gap:7px;justify-content:center;margin-bottom:10px}
+.leds i{width:clamp(16px,2.3vw,28px);height:9px;border-radius:5px;background:#22262c}
+.leds i.w{background:#eef0f2;box-shadow:0 0 10px #fff7}
+.leds i.r,.leds i.f{background:var(--red);box-shadow:0 0 12px #ff3b2f99}
+.dial{position:relative;width:100%;max-width:min(100%,64vh,640px);aspect-ratio:1/1}
+.dial svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tk{font-size:24px;font-weight:600;fill:#d4d8dc;text-anchor:middle;dominant-baseline:central}
+.tk.red{fill:var(--red)}
+.spd{font-size:104px;font-weight:700;fill:var(--ink);text-anchor:middle;font-variant-numeric:tabular-nums}
+.unit{font-size:18px;fill:var(--mute);text-anchor:middle}
+.gear{font-size:42px;font-weight:700;fill:var(--ink);text-anchor:middle}
+.side{display:flex;flex-direction:column;gap:12px}
+.start{min-height:76px;border-radius:14px;border:0;background:var(--red);color:#fff;font-size:24px;font-weight:700;box-shadow:0 6px 0 var(--red2);transition:transform .08s}
+.start:active{transform:translateY(3px);box-shadow:0 3px 0 var(--red2)}
+.start.on{background:var(--panel2);color:var(--ink);box-shadow:0 6px 0 #000;border:2px solid var(--red)}
+.lbl{font-size:14px;color:var(--mute);margin:2px 0 -4px 4px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px}
+.seg button{min-height:56px;border:0;border-radius:10px;background:transparent;color:var(--mute);font-size:19px;font-weight:600;line-height:1.1}
+.seg button small{display:block;font-size:13px;font-weight:400;margin-top:2px}
+.seg button[aria-pressed=true]{background:var(--ink);color:#0b0c0e}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.note{color:var(--mute);font-size:15px;margin:0}
+.pedals{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:12px;margin-bottom:12px}
+.pedal{min-height:128px;border-radius:14px;border:1px solid #33383f;font-size:22px;font-weight:700;touch-action:none;background:repeating-linear-gradient(0deg,#22262c 0 10px,#191c21 10px 18px);display:flex;align-items:flex-end;justify-content:center;padding-bottom:12px}
+.pedal.on{background:repeating-linear-gradient(0deg,#3a1512 0 10px,#2a0f0d 10px 18px);border-color:var(--red)}
+.pedal.gas.on{background:repeating-linear-gradient(0deg,#e9ebee 0 10px,#c9cdd2 10px 18px);color:#0b0c0e;border-color:#fff}
+.off .pedal{opacity:.45}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) 3.6em;align-items:center;gap:12px;font-size:16px}
+.row output{text-align:right;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+input[type=range]{width:100%;height:44px;accent-color:var(--red);background:transparent}
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tog{min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:17px;font-weight:600}
+.tog[aria-pressed=true]{border-color:var(--red);background:#2a1411}
+h2{font-size:20px;margin:26px 0 10px;font-weight:600}
+.engines{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.eng{text-align:left;min-height:68px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+.eng b{display:block;font-size:19px;line-height:1.15}
+.eng span{display:block;font-size:14px;color:var(--mute)}
+.eng[aria-pressed=true]{border:2px solid var(--red);background:#22110f;padding:9px 13px}
+footer{margin-top:22px;color:var(--mute);font-size:14px;max-width:80ch}
+footer p{margin:6px 0}
+[hidden]{display:none!important}
+@media (max-width:820px){.main{grid-template-columns:minmax(0,1fr)}.dial{max-width:min(100%,480px)}}
+@media (max-width:420px){.pedal{min-height:104px}.row{grid-template-columns:minmax(0,1fr) 3.6em}.row span{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Moottoriääni <span>Teslaan</span></h1>
+    <span class="chip" id="gpsChip"><i></i><span id="gpsTxt">GPS pois</span></span>
+  </header>
+  <div class="banner" id="embedNote" hidden><b>Esikatselu:</b> sijainti ei toimi upotetussa näkymässä. Kokeile Demo-tilaa täällä. Autossa avaa sivu omasta https-osoitteestaan.</div>
+
+  <div class="main">
+    <div class="cluster">
+      <div class="leds" id="leds"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="dial"><svg id="dial" viewBox="0 0 400 400" role="img" aria-label="Kierroslukumittari"></svg></div>
+    </div>
+
+    <div class="side">
+      <button id="startBtn" class="start">Käynnistä moottori</button>
+      <div class="seg" role="group" aria-label="Nopeuden lähde">
+        <button data-mode="gps" aria-pressed="true">GPS-nopeus<small>ajaessa</small></button>
+        <button data-mode="demo" aria-pressed="false">Demo<small>kokeile parkissa</small></button>
+      </div>
+      <div class="panel" id="gpsPanel"><p class="note" id="gpsNote">Nopeus tulee GPS:stä noin kerran sekunnissa, joten ääni seuraa pienellä viiveellä. Kaasu arvioidaan kiihtyvyydestä.</p></div>
+      <div class="panel off" id="demoPanel" hidden>
+        <div class="pedals">
+          <button id="brake" class="pedal" aria-label="Jarru, pidä pohjassa">Jarru</button>
+          <button id="gas" class="pedal gas" aria-label="Kaasu, pidä pohjassa">Kaasu</button>
+        </div>
+        <label class="row"><span>Kevyt kaasu</span><input id="cruise" type="range" min="0" max="100" value="0"><output id="cruiseOut">0 %</output></label>
+        <p class="note" id="demoNote">Käynnistä moottori ensin. Pidä Kaasu pohjassa kiihdyttääksesi (näppäimistöllä ↑ ja ↓).</p>
+      </div>
+      <p class="lbl">Kuuntelupaikka</p>
+      <div class="seg" role="group" aria-label="Kuuntelupaikka">
+        <button data-view="in" aria-pressed="true">Sisällä<small>ohjaamo, imu ja moottori</small></button>
+        <button data-view="out" aria-pressed="false">Ulkona<small>pakoputken takana</small></button>
+      </div>
+      <label class="row"><span>Äänenvoimakkuus</span><input id="vol" type="range" min="0" max="100" value="70"><output id="volOut">70 %</output></label>
+      <label class="row"><span>Basso</span><input id="bass" type="range" min="0" max="100" value="65"><output id="bassOut">65 %</output></label>
+      <div class="toggles">
+        <button id="sport" class="tog" aria-pressed="false">Sport-tila</button>
+        <button id="units" class="tog">Yksikkö: km/h</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>Moottori</h2>
+  <div class="engines" id="engines"></div>
+
+  <footer>
+    <p>Avaa sivu auton selaimessa pysäköitynä, paina Käynnistä ja salli sijainti. Ääni tulee auton sisäkaiuttimista, ja voimakkuutta säädetään myös auton omasta säätimestä. Ääni jatkuu, vaikka pienennät selaimen. Pysäköitynä Teslan Boombox voi soittaa median myös ulkokaiuttimesta, mutta ajon aikana ääni kuuluu vain sisäkaiuttimista.</p>
+    <p>Sport-tila pitää vaihteet pidempään ja lisää paukkeita. Kaikki ääni syntetisoidaan selaimessa. Sijaintia käytetään vain nopeuden laskemiseen, eikä sitä tallenneta tai lähetetä minnekään. Säädä asetukset ennen liikkeelle lähtöä.</p>
+  </footer>
+</div>
+
+<script>
+{
+/* ---------- engine profiles ---------- */
+const DEF={cyc:.06,cvs:.05,lope:0,pw:90,iw:200,snap:.4,snapT:.00035,turb:.3,hdr:2.5,hfb:-.35,pipe:4,pfb:-.4,damp:.4,diff:.4,
+  muf:900,mufTop:5500,drive:1.6,rad:.5,intake:.5,plen:180,runner:1.1,metal:.3,tick:.3,tickF:5200,bSub:.4,bFund:.4,subK:0,
+  turbo:0,whistle:0,bov:null,crackle:.6,whine:.4,whT:23,trim:1,body:[100,1,3],pres:[900,1,2]};
+const alt=n=>Array.from({length:n},(_,i)=>i%2);
+const ENGINES=[
+ {id:'v8x',name:'Muscle V8',sub:'6,2 l crossplane · jylinä',cyl:8,banks:[0,1,0,1,1,0,1,0],idle:680,red:6600,cyc:.08,lope:.55,pw:100,snap:.3,turb:.25,hdr:3,hfb:-.3,pipe:6.5,pfb:-.45,damp:.32,diff:.45,muf:650,mufTop:4200,drive:1.8,rad:.35,intake:.45,plen:120,metal:.25,bSub:.9,bFund:.55,subK:4,crackle:.6,body:[85,1.1,3],pres:[600,1,2],gears:[2.97,2.07,1.43,1,.84,.56],final:3.42,tire:.345},
+ {id:'v8f',name:'Flat-plane V8',sub:'3,9 l · korkeat kierrokset',cyl:8,banks:alt(8),idle:950,red:8500,lope:.06,pw:75,snap:.55,snapT:.0003,turb:.38,hdr:2,hfb:-.4,pipe:3.6,pfb:-.42,damp:.5,diff:.35,muf:1000,mufTop:7500,drive:2.2,rad:.7,intake:.65,plen:230,bSub:.2,bFund:.45,subK:4,crackle:.7,body:[160,1,3],pres:[1500,1.2,3],gears:[3.08,2.19,1.63,1.29,1.03,.84,.69],final:3.9,tire:.34},
+ {id:'v10',name:'V10',sub:'5,2 l · ulvova',cyl:10,banks:alt(10),idle:1000,red:8700,lope:.05,pw:72,snap:.5,turb:.35,hdr:1.8,hfb:-.4,pipe:3.2,pfb:-.42,damp:.5,muf:1100,mufTop:8000,drive:2.2,rad:.7,intake:.6,plen:250,bSub:.2,bFund:.45,subK:5,crackle:.85,body:[190,1,3],pres:[1800,1.4,4],gears:[3.13,2.39,1.78,1.36,1.07,.87,.7],final:4,tire:.34},
+ {id:'v12',name:'V12',sub:'6,5 l · sileä ja korkea',cyl:12,banks:alt(12),idle:950,red:9000,lope:.03,pw:85,snap:.35,turb:.3,hdr:1.6,hfb:-.35,pipe:3,pfb:-.4,damp:.55,muf:1300,mufTop:9000,drive:1.9,rad:.6,intake:.75,plen:270,bSub:.15,bFund:.4,subK:6,crackle:.5,body:[230,1,2],pres:[2200,1.3,4],gears:[3.08,2.19,1.63,1.29,1.03,.84,.69],final:4.1,tire:.345},
+ {id:'b6',name:'Bokseri-6',sub:'4,0 l · metallinen raspi',cyl:6,banks:alt(6),idle:900,red:9000,lope:.08,pw:80,snap:.6,snapT:.0003,turb:.42,hdr:2.4,hfb:-.4,pipe:3.6,pfb:-.42,damp:.45,muf:1000,mufTop:7500,drive:2.4,rad:.7,intake:.8,plen:220,metal:.55,tick:.6,bSub:.3,bFund:.5,subK:3,crackle:.65,body:[150,1.1,3],pres:[1250,2,6],gears:[3.75,2.38,1.72,1.34,1.11,.96],final:3.97,tire:.34},
+ {id:'b4',name:'Bokseri-4 turbo',sub:'2,5 l · rallimurina, flutter',cyl:4,hdj:[0,2.6,.6,3.3],idle:800,red:7000,lope:.2,cvs:.08,pw:95,snap:.45,turb:.35,hdr:2.6,pipe:5,muf:750,mufTop:5000,drive:2,rad:.5,intake:.45,plen:160,bSub:.55,bFund:.45,subK:2,turbo:.9,whistle:.9,bov:'flutter',crackle:.7,body:[120,1.1,2.5],pres:[800,1.2,3],gears:[3.45,1.95,1.37,1.03,.8,.67],final:3.9,tire:.33},
+ {id:'i5',name:'Rivi-5 turbo',sub:'2,5 l · epätasainen soundi',cyl:5,idle:850,red:7000,cvs:.12,lope:.12,pw:90,snap:.45,turb:.35,hdr:2.6,pipe:4.6,pfb:-.42,muf:800,mufTop:5200,drive:2,intake:.45,plen:170,bSub:.5,bFund:.5,subK:2,turbo:.85,whistle:.8,bov:'bov',crackle:.65,body:[140,1.2,2.5],pres:[900,1.2,3],gears:[3.56,2.19,1.52,1.16,.86,.69],final:3.3,tire:.33},
+ {id:'i4',name:'Rivi-4 turbo',sub:'2,0 l · paukut ja puhallus',cyl:4,idle:850,red:7200,pw:95,snap:.5,turb:.4,hdr:2.4,pipe:4.2,muf:800,mufTop:4800,drive:2.2,intake:.45,plen:150,bSub:.5,bFund:.45,subK:2,turbo:1,whistle:1,bov:'bov',crackle:1,body:[130,1.2,3],pres:[1100,1.4,3],gears:[3.54,2.13,1.48,1.12,.92,.78],final:4.1,tire:.32},
+ {id:'i6',name:'Rivi-6 turbo',sub:'3,0 l · sileä murina',cyl:6,idle:700,red:7200,cyc:.04,pw:100,snap:.3,turb:.25,hdr:2.2,pipe:4.6,muf:900,mufTop:5600,drive:1.7,intake:.5,plen:190,bSub:.35,bFund:.5,subK:3,turbo:.6,whistle:.6,bov:'bov',crackle:.45,body:[150,1,3],pres:[1000,1.1,2],gears:[5,3.2,2.14,1.72,1.31,1,.82,.64],final:3.15,tire:.34},
+ {id:'rot',name:'Wankel',sub:'1,3 l 2-roottori · surina',cyl:4,idle:1000,red:9000,lope:.5,cvs:.1,pw:48,snap:.85,snapT:.00028,turb:.6,hdr:1.4,pipe:2.8,pfb:-.35,damp:.55,diff:.25,muf:1300,mufTop:8500,drive:2.6,rad:.8,intake:.6,plen:260,metal:.15,tick:0,bSub:.35,bFund:.4,subK:2,crackle:.9,body:[220,1,2],pres:[1600,1.5,5],gears:[3.48,2.02,1.39,1,.76],final:4.3,tire:.31}
+].map(e=>Object.assign({},DEF,e));
+/* per-engine layer balance [exhaust, intake, block, bass, trim], measured offline */
+const CAL={v8x:[1.577,0.348,0.07,0.703,1.107],v8f:[1.455,0.453,0.057,0.75,1.06],v10:[1.485,0.385,0.055,0.744,1.221],v12:[1.588,0.425,0.048,0.814,1.432],b6:[1.488,0.63,0.136,0.749,1.333],b4:[0.868,0.301,0.088,0.661,1.199],i5:[0.957,0.42,0.069,0.652,0.993],i4:[0.828,0.323,0.069,0.674,0.907],i6:[0.812,0.421,0.08,0.684,1.204],rot:[1.552,0.406,0.046,0.806,0.991]};
+for(const e of ENGINES){const c=CAL[e.id];if(c){e.cal=c.slice(0,4);e.trim=c[4];}}
+
+/* ---------- sound synthesis: shared by AudioWorklet and fallback ---------- */
+function dspFactory(){
+  const PT=new Float32Array(1026),IT=new Float32Array(1026);
+  for(let i=0;i<=1024;i++){
+    const x=i/1024,xp=.12;
+    let g=x<xp?Math.pow(Math.sin(Math.PI/2*x/xp),2):Math.exp(-(x-xp)/.2);
+    if(x>.4)g-=.32*Math.pow(Math.sin(Math.PI*(x-.4)/.6),2);
+    PT[i]=g*(1-Math.pow(x,12));
+    IT[i]=-Math.sin(Math.PI*x)*(1-.4*x)+.18*Math.sin(3*Math.PI*x)*(1-x);
+  }
+  PT[1025]=PT[1024];IT[1025]=IT[1024];
+  let seed=123456789;
+  const rn=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return seed/2147483648;};
+  const un=()=>.5+.5*rn();
+  const c01=x=>x<0?0:x>1?1:x;
+  const sat=x=>x>3?1:x<-3?-1:x*(27+x*x)/(27+9*x*x);
+  const TP=2*Math.PI;
+  class Comb{constructor(sz){this.b=new Float32Array(sz);this.m=sz-1;this.i=0;this.d=1;this.fb=0;this.a=.5;this.z=0;}
+    set(d,fb,a){this.d=Math.max(1,Math.min(this.m,d|0));this.fb=fb;this.a=a;}
+    run(x){const r=this.b[(this.i-this.d)&this.m];this.z+=(r-this.z)*this.a;const y=x+this.fb*this.z;this.b[this.i]=y;this.i=(this.i+1)&this.m;return y;}}
+  class AP{constructor(sz){this.b=new Float32Array(sz);this.m=sz-1;this.i=0;this.d=1;this.g=.5;}
+    set(d,g){this.d=Math.max(1,Math.min(this.m,d|0));this.g=g;}
+    run(x){const wd=this.b[(this.i-this.d)&this.m];const w=x+this.g*wd;this.b[this.i]=w;this.i=(this.i+1)&this.m;return wd-this.g*w;}}
+  class Res{constructor(){this.c1=0;this.c2=0;this.g=0;this.y1=0;this.y2=0;}
+    set(f,t,sr,g){const r=Math.exp(-1/(t*sr)),w=TP*Math.min(f,sr*.45)/sr;this.c1=2*r*Math.cos(w);this.c2=-r*r;this.g=g*Math.sin(w);}
+    run(x){const y=this.g*x+this.c1*this.y1+this.c2*this.y2;this.y2=this.y1;this.y1=y;return y;}}
+  class SVF{constructor(){this.l=0;this.b=0;this.f=.1;this.q=1;}
+    set(fc,Q,sr){this.f=2*Math.sin(Math.PI*Math.min(fc,sr/7)/sr);this.q=1/Q;}
+    run(x){this.l+=this.f*this.b;const h=x-this.l-this.q*this.b;this.b+=this.f*h;return this.b*this.q;}}
+  return class EngineDSP{
+    constructor(sr){
+      this.sr=sr;this.E=null;this.n=0;this.ph=0;this.mono=true;
+      this.rpm=0;this.tRpm=0;this.load=0;this.tLoad=0;this.cut=0;this.crk=0;this.g=0;this.tg=0;
+      this.boost=0;this.sh=0;this.bass=.8;this.view=0;this.tView=0;this.whine=0;this.starter=0;this.stG=0;this.stPh=0;
+      const N=16;
+      this.off=new Float32Array(N);this.bank=new Uint8Array(N);this.hd=new Float32Array(N);this.cv=new Float32Array(N);
+      this.last=new Float32Array(N);this.jt=new Float32Array(N);this.amp=new Float32Array(N);this.tn=new Float32Array(N);this.sn=new Float32Array(N);this.ia=new Float32Array(N);
+      this.hdr=[new Comb(2048),new Comb(2048)];this.pipe=[new Comb(4096),new Comb(4096)];
+      this.ap1=[new AP(1024),new AP(1024)];this.ap2=[new AP(1024),new AP(1024)];
+      this.m1=[0,0];this.m2=[0,0];this.bz=[0,0];this.pv=[0,0];this.dci=[0,0];this.dco=[0,0];this.pop=[0,0];this.popC=[0,0];
+      this.inC=new Comb(1024);this.inF=new SVF();this.inLP=0;
+      this.modes=[];for(let i=0;i<6;i++)this.modes.push(new Res());this.tickF=new SVF();this.tE=0;this.exc=0;this.tick=0;
+      this.wPh=0;this.hiss=new SVF();this.bov=0;this.bovT=0;this.bovF=new SVF();this.flPh=0;
+      this.clk=0;this.clkPh=0;this.clkE=0;this.clkLP=0;this.clkHP=0;this.whPh=0;this.ce=0;this.ceT=0;
+      this.mix={exh:1,int:1,mech:1,bass:1,turbo:1};
+      this.pd=Math.exp(-1/(.0028*sr));this.tD=Math.exp(-1/(.0006*sr));this.clD=Math.exp(-1/(.09*sr));this.ckD=Math.exp(-1/(.004*sr));
+    }
+    set(p){
+      if(p.E)this.cfg(p.E);
+      if(p.mix)Object.assign(this.mix,p.mix);
+      if(p.ev==='up'){const v=p.v||1;this.clk=.8*v;this.clkPh=0;this.clkE=.6*v;}
+      else if(p.ev==='down'){this.clk=.45;this.clkPh=0;this.clkE=.35;}
+      else if(p.ev==='bov'){this.bov=c01(p.v||1);this.bovT=0;this.flPh=0;}
+      const q=p.p;if(!q)return;
+      if(q.rpm!==undefined)this.tRpm=q.rpm;
+      if(q.load!==undefined)this.tLoad=q.load;
+      if(q.cut!==undefined)this.cut=q.cut;
+      if(q.crk!==undefined)this.crk=q.crk;
+      if(q.boost!==undefined)this.boost=q.boost;
+      if(q.on!==undefined)this.tg=q.on;
+      if(q.bass!==undefined)this.bass=q.bass;
+      if(q.view!==undefined)this.tView=q.view;
+      if(q.whine!==undefined)this.whine=q.whine;
+      if(q.starter!==undefined)this.starter=q.starter;
+    }
+    cfg(E){
+      this.E=E;const n=E.cyl,sr=this.sr,ms=x=>x/1000*sr;this.n=n;
+      for(let i=0;i<n;i++){
+        this.off[i]=(E.fire?E.fire[i]:i*720/n)/720;
+        this.bank[i]=E.banks?E.banks[i]:0;
+        this.hd[i]=(E.hdj?E.hdj[i%E.hdj.length]:Math.random()*.3)/1000;
+        this.cv[i]=1+E.cvs*(Math.random()*2-1);
+        this.last[i]=.999;this.amp[i]=0;this.tn[i]=0;this.sn[i]=0;this.ia[i]=0;
+      }
+      this.mono=!E.banks;
+      for(let b=0;b<2;b++){
+        this.hdr[b].set(ms(E.hdr*(b?1.07:1)),E.hfb*.85,.5);
+        this.pipe[b].set(ms(E.pipe*(b?(E.banks?1.11:1.19):1)),E.pfb*.85,E.damp*.85);
+        this.ap1[b].set(ms(b?3.7:3.1),E.diff);this.ap2[b].set(ms(b?1.3:1.7),E.diff*.8);
+      }
+      this.inC.set(ms(E.runner),.45,.6);this.inF.set(E.plen,2.5,sr);
+      const mf=[190,430,860,1420,2350,3700];
+      for(let i=0;i<6;i++)this.modes[i].set(mf[i]*(1+.04*(Math.random()*2-1)),.0035/(1+.3*i),sr,1/(i+1.5));
+      this.tickF.set(E.tickF,1.4,sr);
+      this.cal=E.cal||[1,1,1,1];
+      this.norm=1.25/Math.sqrt(n);this.subK=E.subK||Math.max(1,Math.round(n/2));
+      this.pw=E.pw/720;this.iw=E.iw/720;this.sd=Math.exp(-1/(E.snapT*sr));
+      this.bovD=Math.exp(-1/((E.bov==='flutter'?.45:.3)*sr));
+    }
+    fire(i){
+      const E=this.E,L=this.load,r=this.rpm;
+      let a=this.cv[i]*(1+E.cyc*rn());
+      const lope=E.lope*c01(1-(r-E.idle)/1600);
+      if(lope>0){a*=1+lope*.5*rn();if(un()<lope*.12)a*=.35;}
+      let snap=E.snap,tn=E.turb;
+      if(un()<this.cut){
+        a*=.1;tn*=.4;snap*=.15;
+        if(un()<this.crk*.07*c01((r-1400)/3000)){const b=this.mono?0:this.bank[i];this.pop[b]=Math.max(this.pop[b],1.6+2.4*un());this.popC[b]=un();}
+      }else{a*=.28+.95*L;snap*=.35+.9*L;tn*=.4+.9*L;}
+      this.amp[i]=a;this.tn[i]=tn;this.sn[i]=a*snap;this.jt[i]=un()*.0025;this.ia[i]=this.cv[i]*(.15+.85*L);
+      this.exc+=a*(.3+.7*L);this.ceT=this.ceT*.75+a*.25;
+    }
+    chain(b,x,mA,bA){
+      const E=this.E;
+      x=this.hdr[b].run(x);x=this.pipe[b].run(x);
+      x=sat(x*E.drive)/E.drive;
+      x=this.ap1[b].run(x);x=this.ap2[b].run(x);
+      const m1=this.m1[b]+(x-this.m1[b])*mA;this.m1[b]=m1;
+      const m2=this.m2[b]+(m1-this.m2[b])*mA;this.m2[b]=m2;
+      const y=m2+E.rad*4*(m2-this.pv[b]);this.pv[b]=m2;
+      const o=y-this.dci[b]+.997*this.dco[b];this.dci[b]=y;this.dco[b]=o;
+      const z=this.bz[b]+(o-this.bz[b])*bA;this.bz[b]=z;
+      return z;
+    }
+    render(oL,oR){
+      const N=oL.length;
+      if(!this.E){oL.fill(0);if(oR)oR.fill(0);return;}
+      const E=this.E,sr=this.sr,n=this.n,inv=1/sr,mx=this.mix;
+      this.view+=(this.tView-this.view)*.05;
+      const view=this.view,inside=1-view;
+      const rn01=c01(this.rpm/E.red);
+      const mfc=E.muf*(.7+.9*rn01)+(E.mufTop-E.muf)*this.load*(.35+.65*rn01);
+      const mA=1-Math.exp(-TP*Math.min(mfc,sr*.4)/sr),bA=1-Math.exp(-TP*(1400+view*9000)/sr);
+      this.hiss.set(1100+3400*this.sh,1.3,sr);
+      this.bovF.set(E.bov==='flutter'?650:900+1900*this.bov,E.bov==='flutter'?2.2:1.4,sr);
+      const cal=this.cal,cross=.12+.25*inside,gExh=mx.exh*cal[0],gInt=mx.int*cal[1]*(.3+.7*inside),gMech=mx.mech*cal[2]*(.3+.7*inside);
+      const gBass=mx.bass*cal[3]*this.bass*(1-.3*view),lo=1/(1+this.rpm/3500);
+      const cpsB=this.rpm/120,gate=f=>c01((f-28)/20),gS=gate(cpsB*this.subK)*E.bSub,gF=gate(cpsB*n)*E.bFund,gF2=gate(cpsB*n*2)*(1-gate(cpsB*n))*E.bFund*.8;
+      for(let k=0;k<N;k++){
+        this.rpm+=(this.tRpm-this.rpm)*.0015;
+        this.load+=(this.tLoad-this.load)*.002;
+        this.g+=(this.tg-this.g)*.0004;
+        const cps=(this.rpm>40?this.rpm:40)/120;
+        let ph=this.ph+cps*inv;if(ph>=1)ph-=1;this.ph=ph;
+        let b0=0,b1=0,ib=0;
+        for(let i=0;i<n;i++){
+          let lp=ph-this.off[i]-this.hd[i]*cps;lp-=Math.floor(lp);
+          const ls=this.last[i];
+          if(lp<ls-.5)this.fire(i);
+          else if(ls<.5&&lp>=.5)this.tick+=this.ia[i];
+          this.last[i]=lp;
+          let e=0;
+          const lj=lp-this.jt[i];
+          if(lj>=0&&lj<this.pw){const x=lj/this.pw*1024,j=x|0,f=x-j,p=PT[j]+(PT[j+1]-PT[j])*f,a=this.amp[i];e=a*p+this.tn[i]*a*(p>0?p:0)*rn();}
+          const s=this.sn[i];if(s>1e-4){e+=s*rn();this.sn[i]=s*this.sd;}
+          if(this.bank[i])b1+=e;else b0+=e;
+          if(lp>=.5&&lp<.5+this.iw){const x=(lp-.5)/this.iw*1024,j=x|0,f=x-j;ib+=this.ia[i]*(IT[j]+(IT[j+1]-IT[j])*f);}
+        }
+        if(this.mono)b1=b0;
+        b0*=this.norm;b1*=this.norm;
+        let c0=0,c1=0;
+        if(this.pop[0]>1e-3){const pp=this.pop[0],r=rn();b0+=pp*(.5*(1-this.popC[0])+.75*r);c0=pp*r*.3;this.pop[0]=pp*this.pd;}
+        if(this.pop[1]>1e-3){const pp=this.pop[1],r=rn();b1+=pp*(.5*(1-this.popC[1])+.75*r);c1=pp*r*.3;this.pop[1]=pp*this.pd;}
+        if(this.mono){b1=b0;c1=c0;}
+        const e0=(this.chain(0,b0,mA,bA)+c0*(.4+.6*view))*gExh,e1=(this.chain(1,b1,mA,bA)+c1*(.4+.6*view))*gExh;
+        let L=e0+e1*cross,R=e1+e0*cross;
+        /* intake */
+        let ix=ib*this.norm*(.2+.8*this.load*this.load)+rn()*.04*this.load;
+        ix=this.inC.run(ix);
+        this.inLP+=(this.inF.run(ix)*1.2+ix*.25-this.inLP)*.35;
+        let c=this.inLP*gInt;
+        /* block resonances, valvetrain */
+        const ex=this.exc;this.exc=0;const tk=this.tick;this.tick=0;
+        let mech=0;for(let m=0;m<6;m++)mech+=this.modes[m].run(ex);
+        if(tk>0)this.tE+=tk*E.tick*.5;
+        if(this.tE>1e-4){mech+=this.tickF.run(rn()*this.tE);this.tE*=this.tD;}
+        c+=mech*gMech;
+        /* gearbox */
+        let gb=0;
+        if(this.clk>1e-4){this.clkPh+=(42+45*this.clk)*inv;gb+=this.clk*Math.sin(TP*this.clkPh)*.45;this.clk*=this.clD;}
+        if(this.clkE>1e-4||this.clkLP*this.clkLP>1e-8){const ck=this.clkE*rn();this.clkLP+=(ck-this.clkLP)*.12;this.clkHP+=(this.clkLP-this.clkHP)*.02;gb+=(this.clkLP-this.clkHP)*.5;this.clkE*=this.ckD;}
+        if(this.whine>0){this.whPh+=this.rpm/60*E.whT*inv;this.whPh-=Math.floor(this.whPh);gb+=Math.sin(TP*this.whPh)*this.whine*E.whine*this.load*.012;}
+        c+=gb*mx.mech*(.5+.5*inside);
+        /* starter motor */
+        if(this.starter||this.stG>1e-4){this.stG+=(this.starter-this.stG)*.003;this.stPh+=(110+this.rpm*.18)*inv;this.stPh-=Math.floor(this.stPh);const t=TP*this.stPh;c+=(Math.sin(t)+.5*Math.sin(2*t)+.3*Math.sin(3*t)+.12*rn())*.06*this.stG;}
+        /* bass, phase-locked to the crank */
+        this.ce+=(this.ceT-this.ce)*.0008;
+        const bs=(gS*Math.sin(TP*ph*this.subK)+gF*Math.sin(TP*ph*n+.6)+gF2*Math.sin(TP*ph*n*2+.3))*this.ce*lo*gBass*(.3+.7*this.load);
+        c+=sat(bs*1.5)*.45;
+        /* turbo */
+        let tb=0;
+        if(E.turbo){
+          this.sh+=(this.boost-this.sh)*.0003;const sh=this.sh;
+          this.wPh+=(1700+6800*sh)*inv;if(this.wPh>1)this.wPh-=1;
+          tb+=(Math.sin(TP*this.wPh)+.22*Math.sin(2*TP*this.wPh))*E.whistle*sh*sh*(.3+.7*this.load)*.065;
+          tb+=this.hiss.run(rn())*sh*(.2+.8*this.load)*.09*E.turbo;
+        }
+        if(this.bov>1e-4){
+          this.bovT+=inv;const e=this.bov;let v;
+          if(E.bov==='flutter'){this.flPh+=(9+16*e)*inv;if(this.flPh>1)this.flPh-=1;const m=Math.pow(.5+.5*Math.cos(TP*this.flPh),5);v=this.bovF.run(rn())*m*1.8;}
+          else v=this.bovF.run(rn())*(this.bovT<.012?this.bovT/.012:1);
+          tb+=v*e*.22*E.turbo;this.bov=e*this.bovD;
+        }
+        c+=tb*mx.turbo;
+        const gg=this.g*E.trim;
+        oL[k]=sat((L+c)*gg);if(oR)oR[k]=sat((R+c)*gg);
+      }
+    }
+  };
+}
+const WSRC=`const EngineDSP=(${dspFactory.toString()})();
+class EP extends AudioWorkletProcessor{constructor(){super();this.d=new EngineDSP(sampleRate);this.port.onmessage=e=>this.d.set(e.data);}
+process(i,o){const ch=o[0];this.d.render(ch[0],ch[1]||null);return true;}}
+registerProcessor('engine-dsp',EP);`;
+
+async function makeSource(ctx){
+  try{
+    if(!ctx.audioWorklet)throw new Error('no worklet');
+    const url=URL.createObjectURL(new Blob([WSRC],{type:'application/javascript'}));
+    await ctx.audioWorklet.addModule(url);
+    const node=new AudioWorkletNode(ctx,'engine-dsp',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});
+    return {node,post:m=>node.port.postMessage(m),kind:'worklet'};
+  }catch(e){
+    const D=dspFactory(),dsp=new D(ctx.sampleRate);
+    const node=ctx.createScriptProcessor(1024,1,2);
+    node.onaudioprocess=ev=>dsp.render(ev.outputBuffer.getChannelData(0),ev.outputBuffer.getChannelData(1));
+    return {node,post:m=>dsp.set(m),kind:'script'};
+  }
+}
+function makeIR(ctx,kind){
+  const sr=ctx.sampleRate,out=kind==='out',len=Math.floor(sr*(out?1.3:.32)),b=ctx.createBuffer(2,len,sr);
+  const taps=out?[[.009,.5],[.019,.42],[.036,.33],[.058,.26],[.083,.2]]:[[.0016,.55],[.0029,.45],[.0041,.4],[.0063,.32],[.0085,.28],[.011,.22],[.0142,.18]];
+  for(let c=0;c<2;c++){
+    const d=b.getChannelData(c);
+    for(const[t,a]of taps){const i=Math.floor(t*(1+.15*(Math.random()*2-1))*sr);if(i<len)d[i]+=a*(Math.random()<.5?-1:1);}
+    let lp=0;const T=out?.32:.07,st=Math.floor((out?.012:.004)*sr),aLP=out?.35:.22;
+    for(let i=st;i<len;i++){const t=(i-st)/sr;lp+=((Math.random()*2-1)-lp)*aLP;d[i]+=lp*.5*Math.exp(-t/T)*Math.min(1,t/.004+.1);}
+  }
+  return b;
+}
+function buildGraph(ctx,src){
+  const g={ctx,post:src.post,kind:src.kind,src:src.node};
+  const bq=(type,f,q,gn)=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(q)b.Q.value=q;if(gn!==undefined)b.gain.value=gn;return b;};
+  g.hp=bq('highpass',24,.7);g.low=bq('lowshelf',110,0,4);g.body=bq('peaking',100,1,3);g.pres=bq('peaking',900,1,2);
+  g.vol=ctx.createGain();g.vol.gain.value=0;g.wet=ctx.createGain();g.wet.gain.value=.22;
+  g.comp=ctx.createDynamicsCompressor();
+  g.comp.threshold.value=-9;g.comp.knee.value=8;g.comp.ratio.value=4;g.comp.attack.value=.003;g.comp.release.value=.2;
+  src.node.connect(g.hp);g.hp.connect(g.low);g.low.connect(g.body);g.body.connect(g.pres);g.pres.connect(g.vol);
+  g.wet.connect(g.vol);g.vol.connect(g.comp);g.comp.connect(ctx.destination);
+  g.setIR=kind=>{
+    const c=ctx.createConvolver();c.buffer=makeIR(ctx,kind);g.pres.connect(c);c.connect(g.wet);
+    if(g.conv){const old=g.conv;try{g.pres.disconnect(old)}catch(e){}setTimeout(()=>{try{old.disconnect()}catch(e){}},1600);}
+    g.conv=c;g.ir=kind;
+  };
+  g.setIR('in');
+  return g;
+}
+function applyEngine(g,E){
+  g.body.frequency.value=E.body[0];g.body.Q.value=E.body[1];g.body.gain.value=E.body[2];
+  g.pres.frequency.value=E.pres[0];g.pres.Q.value=E.pres[1];g.pres.gain.value=E.pres[2];
+  g.post({E:JSON.parse(JSON.stringify(E))});
+}
+
+/* ---------- state ---------- */
+const $=id=>document.getElementById(id);
+const clamp=(x,a,b)=>x<a?a:x>b?b:x;
+const KEY='moottoriaani.v2';
+const embedded=(()=>{try{return window.top!==window.self}catch(e){return true}})();
+let saved={};try{saved=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+const num=(v,d)=>typeof v==='number'&&isFinite(v)?v:d;
+const cfg={engine:saved.engine||'v8x',vol:num(saved.vol,70),bass:num(saved.bass,65),mode:saved.mode||(embedded?'demo':'gps'),view:saved.view==='out'?'out':'in',sport:!!saved.sport,mph:!!saved.mph};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(cfg))}catch(e){}};
+let eng=ENGINES.find(e=>e.id===cfg.engine)||ENGINES[0];
+let A=null,running=false,dialMax=8000,wake=null;
+const S={v:0,vp:0,aS:0,thr:0,inThr:0,gear:0,rpm:0,cut:0,load:0,shiftT:0,shiftKind:'',shiftCool:0,limT:0,lim:false,startT:9,stopT:0,boost:0,thrPk:0,liftT:0,crk:0,blip:0,wan:0,wanT:0,wanTgt:0};
+const input={gas:0,brake:0,cruise:0};
+const G={id:null,v:0,a:0,t:0,acc:null,last:null,state:'off',why:''};
+
+/* ---------- GPS ---------- */
+function hav(a,b,c,d){const R=6371000,r=Math.PI/180,x=Math.sin((c-a)*r/2),y=Math.sin((d-b)*r/2);
+  return 2*R*Math.asin(Math.sqrt(x*x+Math.cos(a*r)*Math.cos(c*r)*y*y));}
+function onPos(p){
+  const now=performance.now(),c=p.coords,ts=p.timestamp||Date.now();
+  let v=(typeof c.speed==='number'&&isFinite(c.speed)&&c.speed>=0)?c.speed:null;
+  if(G.last){
+    const dt=(ts-G.last.ts)/1000;
+    if(v===null&&dt>.3)v=c.accuracy<40?hav(G.last.lat,G.last.lon,c.latitude,c.longitude)/dt:G.v;
+    if(dt>.2&&v!==null){const a=clamp((v-G.v)/dt,-9,9);G.a=G.a*.4+a*.6;}
+  }
+  if(v===null||v<.4)v=0;
+  G.v=v;G.t=now;G.acc=c.accuracy;G.last={ts,lat:c.latitude,lon:c.longitude};G.state='ok';
+}
+function onErr(e){G.state=e.code===1?'denied':e.code===3?'wait':'na';G.why='';}
+function startGPS(){
+  if(G.id!==null)return;
+  if(!window.isSecureContext){G.state='na';G.why='https';return;}
+  if(!('geolocation' in navigator)){G.state='na';G.why='none';return;}
+  G.state='wait';
+  try{G.id=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:0,timeout:20000});}
+  catch(e){G.state='na';}
+}
+function stopGPS(){if(G.id!==null){try{navigator.geolocation.clearWatch(G.id)}catch(e){}G.id=null;}G.state='off';G.last=null;G.v=0;G.a=0;}
+function gpsPredict(now){
+  if(G.state!=='ok')return 0;
+  const el=(now-G.t)/1000;
+  if(el>5)return G.v*Math.max(0,1-(el-5)/5);
+  return Math.max(0,G.v+G.a*Math.min(el,1.1));
+}
+
+/* ---------- vehicle simulation ---------- */
+function step(dt,now){
+  const E=eng,k=x=>1-Math.exp(-dt/x),GR=E.gears,sp=cfg.sport;
+  if(cfg.mode==='gps')S.v+=(gpsPredict(now)-S.v)*k(.3);
+  else{
+    const gas=running?Math.max(input.cruise,input.gas):0;S.inThr=gas;
+    let drive=gas*Math.min(6.2,240/Math.max(S.v,1));
+    if(S.lim||S.startT<1.6)drive=0;
+    else if(S.shiftT>0&&S.shiftKind==='up')drive*=.15;
+    const res=.12+.00042*S.v*S.v+(gas<.03?.3:0)+input.brake*7.5;
+    S.v=Math.max(0,S.v+(drive-res)*dt);
+  }
+  const a=(S.v-S.vp)/dt;S.vp=S.v;S.aS+=(a-S.aS)*k(.3);
+  let thr;
+  if(cfg.mode==='gps'){thr=S.v<.6?0:clamp(.1+.004*S.v+S.aS/2.6,0,1);if(S.aS<-.35)thr=0;}
+  else thr=S.inThr;
+  if(S.startT<1.6||S.stopT>0)thr=0;
+  S.thr+=(thr-S.thr)*k(thr>S.thr?.07:.12);
+
+  const rpmG=g=>S.v/(2*Math.PI*E.tire)*60*GR[g]*E.final;
+  if(S.gear>GR.length-1)S.gear=GR.length-1;
+  S.shiftCool-=dt;if(S.shiftT>0)S.shiftT-=dt;if(S.blip>0)S.blip-=dt;
+  if(S.v<.8)S.gear=0;
+  else if(S.shiftCool<=0&&S.startT>=1.6){
+    const t=S.thr;
+    const up=E.red*(sp?.6+.37*t:.36+.58*t),dn=E.red*(sp?.34+.3*t:.15+.4*t*t);
+    if(S.gear<GR.length-1&&rpmG(S.gear)>up){S.gear++;S.shiftT=sp?.09:.16;S.shiftKind='up';S.shiftCool=.8;if(A)A.post({ev:'up',v:sp?1:.55+.45*t});}
+    else if(S.gear>0&&rpmG(S.gear)<dn&&rpmG(S.gear-1)<E.red*.9){S.gear--;S.shiftT=.2;S.shiftKind='down';S.shiftCool=.8;S.blip=.2;if(A)A.post({ev:'down'});}
+  }
+  if(S.wanT<=0){S.wanT=.4+Math.random()*.9;S.wanTgt=(Math.random()*2-1)*E.idle*.03;}S.wanT-=dt;
+  S.wan+=(S.wanTgt-S.wan)*k(.45);
+  let tgt=rpmG(S.gear);
+  const launch=S.gear===0?S.thr*(E.red*.42-E.idle)*clamp(1-S.v/9,0,1):0;
+  tgt=Math.max(tgt,E.idle+S.wan+launch);
+  let cut=0;S.lim=false;
+  if(tgt>=E.red){tgt=E.red;S.limT+=dt;S.lim=true;cut=Math.floor(S.limT*16)%2;}
+  if(S.thr<.05&&S.rpm>E.idle+350)cut=Math.max(cut,.9);
+  const upShift=S.shiftT>0&&S.shiftKind==='up';
+  if(upShift)cut=1;
+  let load=Math.max(.06,S.thr);
+  if(S.blip>0){tgt*=1.1;load=Math.max(load,.65);cut=Math.min(cut,.2);}
+  let starter=0;
+  if(S.startT<1.6){
+    S.startT+=dt;const st=S.startT;
+    if(st<.6){tgt=220+40*Math.sin(st*38);cut=.9;load=.3;starter=1;}
+    else if(st<1){tgt=E.idle*2;cut=0;load=.6;}
+    else{tgt=E.idle;cut=0;load=.12;}
+  }
+  if(S.stopT>0){S.stopT-=dt;tgt=120;cut=1;load=0;}
+  const tau=S.shiftT>0?.07:(tgt>S.rpm?.13-.08*S.thr:.2);
+  S.rpm+=(tgt-S.rpm)*k(tau);
+  S.cut=cut;S.load=load;S.starter=starter;
+  S.liftT=S.thr<.05?S.liftT+dt:0;
+  S.crk=E.crackle*(sp?1.4:1)*(.25+.75*Math.exp(-S.liftT/1.8));
+  if(upShift)S.crk=Math.max(S.crk,E.crackle*(sp?2.2:1.1)+.2);
+  if(E.turbo){
+    const bt=E.turbo*S.thr*clamp((S.rpm-.28*E.red)/(.3*E.red),0,1)*(cut>.5?0:1);
+    S.boost+=(bt-S.boost)*k(bt>S.boost?.6:.25);
+    S.thrPk=Math.max(S.thr,S.thrPk-dt*.8);
+    if(S.thrPk-S.thr>.35&&S.boost>.25){if(A)A.post({ev:'bov',v:S.boost});S.boost*=.3;S.thrPk=S.thr;}
+  }else S.boost=0;
+}
+function audioFrame(){
+  const t=A.ctx.currentTime,on=running||S.stopT>0;
+  A.post({p:{rpm:S.rpm,load:S.load,cut:S.cut,crk:S.crk,boost:S.boost,on:on?1:0,bass:cfg.bass/100*1.3,view:cfg.view==='out'?1:0,whine:cfg.sport?1:.4,starter:S.starter||0}});
+  A.low.gain.setTargetAtTime(-4+10*cfg.bass/100,t,.08);
+  A.wet.gain.setTargetAtTime(cfg.view==='out'?.32:.22,t,.1);
+  A.vol.gain.setTargetAtTime(Math.pow(cfg.vol/100,2)*1.3,t,.05);
+  if(A.ir!==cfg.view)A.setIR(cfg.view);
+}
+
+/* ---------- dial ---------- */
+const dial=$('dial'),leds=[...$('leds').children];
+let needle,revArc,spdEl,gearEl,unitEl;
+function buildDial(){
+  const E=eng,maxK=Math.ceil(E.red/1000)+1,max=maxK*1000,R=180;dialMax=max;
+  const pt=(rpm,r)=>{const a=(-135+270*rpm/max)*Math.PI/180;return[200+r*Math.sin(a),200-r*Math.cos(a)];};
+  const arc=(r0,r1,rad)=>{const[x0,y0]=pt(r0,rad),[x1,y1]=pt(r1,rad),lg=(r1-r0)/max*270>180?1:0;
+    return`M${x0.toFixed(1)} ${y0.toFixed(1)}A${rad} ${rad} 0 ${lg} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+  let s=`<circle cx="200" cy="200" r="197" fill="#101215" stroke="#262a30" stroke-width="2"/>
+  <circle cx="200" cy="200" r="150" fill="none" stroke="#1a1d22" stroke-width="1"/>
+  <path d="${arc(0,max,R-6)}" stroke="#23272d" stroke-width="12" fill="none"/>
+  <path id="revArc" d="${arc(0,max,R-6)}" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="1000" stroke="#f3f1ec" stroke-width="12" fill="none"/>
+  <path d="${arc(E.red,max,R-6)}" stroke="var(--red)" stroke-width="12" fill="none" opacity=".95"/>`;
+  for(let r=0;r<=max;r+=500){
+    const maj=r%1000===0,[x0,y0]=pt(r,R-18),[x1,y1]=pt(r,maj?R-38:R-29),red=r>=E.red;
+    s+=`<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${red?'#ff3b2f':'#cfd3d8'}" stroke-width="${maj?4:2}"/>`;
+    if(maj){const[tx,ty]=pt(r,R-62);s+=`<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" class="tk${red?' red':''}">${r/1000}</text>`;}
+  }
+  s+=`<g id="needle"><line x1="200" y1="64" x2="200" y2="18" stroke="var(--red)" stroke-width="6" stroke-linecap="round"/></g>
+  <text id="spd" x="200" y="226" class="spd">0</text>
+  <text id="unitT" x="200" y="256" class="unit">km/h</text>
+  <rect x="168" y="282" width="64" height="60" rx="10" fill="#1b1f24" stroke="#30353c"/>
+  <text id="gear" x="200" y="327" class="gear">P</text>
+  <text x="200" y="374" class="unit">× 1000 r/min</text>`;
+  dial.innerHTML=s;
+  needle=$('needle');revArc=$('revArc');spdEl=$('spd');gearEl=$('gear');unitEl=$('unitT');
+  unitEl.textContent=cfg.mph?'mph':'km/h';
+}
+
+/* ---------- UI ---------- */
+const startBtn=$('startBtn'),gpsTxt=$('gpsTxt'),gpsChip=$('gpsChip'),gpsNote=$('gpsNote');
+function renderEngines(){
+  $('engines').innerHTML=ENGINES.map(e=>`<button class="eng" data-id="${e.id}" aria-pressed="${e.id===eng.id}"><b>${e.name}</b><span>${e.sub}</span></button>`).join('');
+}
+function setMode(m){
+  cfg.mode=m;save();
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));
+  $('gpsPanel').hidden=m!=='gps';$('demoPanel').hidden=m!=='demo';
+  if(running){if(m==='gps')startGPS();else stopGPS();}
+  input.gas=0;input.brake=0;
+}
+function setView(v){
+  cfg.view=v;save();
+  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===v)));
+}
+function setRunningUI(){
+  startBtn.textContent=running?'Sammuta moottori':'Käynnistä moottori';
+  startBtn.classList.toggle('on',running);
+  $('demoPanel').classList.toggle('off',!running);
+  $('demoNote').textContent=running?'Pidä Kaasu pohjassa kiihdyttääksesi ja päästä irti, niin kuulet moottorijarrutuksen ja paukut (näppäimistöllä ↑ ja ↓).':'Käynnistä moottori ensin. Pidä Kaasu pohjassa kiihdyttääksesi (näppäimistöllä ↑ ja ↓).';
+}
+async function reqWake(){try{if('wakeLock' in navigator)wake=await navigator.wakeLock.request('screen');}catch(e){}}
+startBtn.addEventListener('click',async()=>{
+  if(!running){
+    if(!A){
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC){gpsNote.textContent='Selain ei tue Web Audiota.';return;}
+      const ctx=new AC({latencyHint:'interactive'});
+      ctx.resume();
+      running=true;setRunningUI();
+      A=buildGraph(ctx,await makeSource(ctx));
+      applyEngine(A,eng);
+    }else{A.ctx.resume();running=true;setRunningUI();}
+    Object.assign(S,{startT:0,stopT:0,rpm:0,gear:0,thr:0,boost:0,liftT:0,v:cfg.mode==='gps'?S.v:0});
+    if(cfg.mode==='gps')startGPS();
+    reqWake();
+  }else{
+    running=false;S.stopT=.7;setRunningUI();stopGPS();
+    if(wake){try{wake.release()}catch(e){}wake=null;}
+  }
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)reqWake();});
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+$('engines').addEventListener('click',e=>{
+  const b=e.target.closest('.eng');if(!b)return;
+  eng=ENGINES.find(x=>x.id===b.dataset.id)||eng;cfg.engine=eng.id;save();
+  document.querySelectorAll('.eng').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  buildDial();if(A)applyEngine(A,eng);
+});
+function hold(el,key){
+  const on=e=>{e.preventDefault();input[key]=1;el.classList.add('on');try{el.setPointerCapture(e.pointerId)}catch(_){}};
+  const off=()=>{input[key]=0;el.classList.remove('on');};
+  el.addEventListener('pointerdown',on);
+  ['pointerup','pointercancel','lostpointercapture'].forEach(t=>el.addEventListener(t,off));
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+hold($('gas'),'gas');hold($('brake'),'brake');
+const keyMap={ArrowUp:'gas',w:'gas',W:'gas',ArrowDown:'brake',s:'brake',S:'brake'};
+addEventListener('keydown',e=>{const k=keyMap[e.key];if(!k||cfg.mode!=='demo')return;e.preventDefault();input[k]=1;$(k).classList.add('on');});
+addEventListener('keyup',e=>{const k=keyMap[e.key];if(!k)return;input[k]=0;$(k).classList.remove('on');});
+const cruise=$('cruise'),vol=$('vol'),bass=$('bass');
+cruise.addEventListener('input',()=>{input.cruise=cruise.value/100;$('cruiseOut').textContent=cruise.value+' %';});
+vol.value=cfg.vol;$('volOut').textContent=cfg.vol+' %';
+vol.addEventListener('input',()=>{cfg.vol=+vol.value;$('volOut').textContent=vol.value+' %';save();});
+bass.value=cfg.bass;$('bassOut').textContent=cfg.bass+' %';
+bass.addEventListener('input',()=>{cfg.bass=+bass.value;$('bassOut').textContent=bass.value+' %';save();});
+const sportB=$('sport'),unitsB=$('units');
+sportB.setAttribute('aria-pressed',String(cfg.sport));
+sportB.addEventListener('click',()=>{cfg.sport=!cfg.sport;sportB.setAttribute('aria-pressed',String(cfg.sport));save();});
+const setUnits=()=>{unitsB.textContent='Yksikkö: '+(cfg.mph?'mph':'km/h');if(unitEl)unitEl.textContent=cfg.mph?'mph':'km/h';};
+unitsB.addEventListener('click',()=>{cfg.mph=!cfg.mph;save();setUnits();});
+
+let chipKey='';
+function updateChip(now){
+  let txt,cls='',note='Nopeus tulee GPS:stä noin kerran sekunnissa, joten ääni seuraa pienellä viiveellä. Kaasu arvioidaan kiihtyvyydestä.';
+  const stale=G.state==='ok'&&now-G.t>5000;
+  if(G.state==='off'){txt='GPS pois';}
+  else if(G.state==='wait'){txt='GPS: haetaan…';}
+  else if(G.state==='ok'&&!stale){txt='GPS ±'+Math.round(G.acc||0)+' m';cls='ok';}
+  else if(stale){txt='GPS: ei signaalia';cls='warn';}
+  else if(G.state==='denied'){txt='GPS: lupa evätty';cls='warn';note=embedded?'Sijainti on estetty tässä upotetussa näkymässä. Kokeile Demo-tilaa tai avaa sivu omasta https-osoitteestaan.':'Salli sijainti selaimen asetuksista, niin moottori seuraa nopeutta.';}
+  else{txt='GPS ei käytettävissä';cls='warn';note=G.why==='https'?'Sijainti vaatii https-osoitteen.':'Tämä selain ei anna sijaintia. Kokeile Demo-tilaa.';}
+  const key=txt+cls+note;if(key===chipKey)return;chipKey=key;
+  gpsTxt.textContent=txt;gpsChip.className='chip '+cls;gpsNote.textContent=note;
+}
+function drawUI(now){
+  const sp=S.v*(cfg.mph?2.23694:3.6);
+  spdEl.textContent=String(Math.round(sp));
+  gearEl.textContent=(!running&&S.stopT<=0)?'P':(S.v<.5&&S.thr<.03?'N':String(S.gear+1));
+  const f=clamp(S.rpm/dialMax,0,1);
+  needle.setAttribute('transform',`rotate(${(-135+270*f).toFixed(2)} 200 200)`);
+  revArc.setAttribute('stroke-dashoffset',(1000*(1-f)).toFixed(1));
+  const r=S.rpm/eng.red,lit=Math.round(clamp((r-.55)/.4,0,1)*10),flash=r>.96&&running&&(now%160<80);
+  for(let i=0;i<10;i++){const c=flash?'f':i<lit?(i<6?'w':'r'):'';if(leds[i].className!==c)leds[i].className=c;}
+  updateChip(now);
+}
+
+/* ---------- init ---------- */
+$('embedNote').hidden=!embedded;
+renderEngines();buildDial();setUnits();setMode(cfg.mode);setView(cfg.view);setRunningUI();
+let lastT=performance.now();
+const loopId=setInterval(()=>{
+  const now=performance.now(),dt=clamp((now-lastT)/1000,.001,.1);lastT=now;
+  if(running||S.stopT>0)step(dt,now);
+  else{S.rpm+=(0-S.rpm)*.2;S.thr=0;S.boost=0;S.load=0;S.starter=0;if(cfg.mode==='gps')S.v=0;else S.v=Math.max(0,S.v-dt*3);}
+  if(A)audioFrame();
+  drawUI(now);
+},33);
+window.__engineTest={dspFactory,ENGINES,makeSource,buildGraph,applyEngine,
+  sim:{S,input,cfg,step,audioFrame,
+    attach(g,id){A=g;eng=ENGINES.find(e=>e.id===id)||eng;applyEngine(A,eng);},
+    start(){running=true;Object.assign(S,{startT:0,stopT:0,rpm:0,gear:0,thr:0,boost:0,v:0,liftT:0});},
+    stop(){running=false;S.stopT=.7;},
+    stopLoop(){clearInterval(loopId);}}};
+}
+</script>
+</body>
+</html>
